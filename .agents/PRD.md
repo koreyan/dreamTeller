@@ -126,3 +126,39 @@
    - 회원 및 비회원 유저 리스트 표 페이지
    - 회원과 비회원을 필터링해서 볼 수 있는 기능
    - 각 회원의 결제 여부를 확인할 수 있음
+
+## 6. 백엔드 API 아키텍처 (Backend API Architecture)
+Next.js 14+ App Router의 `Route Handlers`(`app/api/.../route.ts`)와 `Supabase`를 기반으로 한 RESTful API 구조입니다. 각 도메인별로 MECE(상호 배제 및 전체 포괄) 원칙에 따라 분리되었습니다.
+
+### 6.1. Auth & Users (인증 및 유저 관리)
+사용자 식별 및 인증 처리, 프로필 관리를 담당합니다.
+- `GET /api/auth/callback`: 구글/카카오 OAuth 로그인 성공 후 Supabase 세션 설정을 위한 콜백
+- `POST /api/auth/guest`: 비회원 인증 (전화번호 및 비밀번호 입력값 검증 후 세션 쿠키 발급)
+- `POST /api/auth/logout`: 현재 세션 로그아웃
+- `GET /api/users/me`: 현재 인증된 사용자(회원/비회원)의 프로필 및 식별 정보 조회
+- `PATCH /api/users/me`: 회원 닉네임 등 프로필 정보 수정
+
+### 6.2. Orders & Payments (주문 및 결제)
+토스페이먼츠 연동 및 주문서(결제 내역) 생성/조회를 담당합니다.
+- `POST /api/orders`: 결제 전 임시 주문서 생성 (금액 및 옵션 무결성 검증용)
+- `POST /api/orders/confirm`: 토스페이먼츠 결제 최종 승인 확인 및 DB 주문 상태 업데이트
+- `GET /api/orders/me`: 내 구매 내역 리스트 조회 (마이페이지/비회원 주문 조회용, 캘린더 매핑 데이터 포함)
+- `GET /api/orders/[order-id]`: 특정 주문 상세 정보 조회 (결제 상태, 금액, 관련 꿈 해몽 ID 등)
+
+### 6.3. Dreams & AI (꿈 해몽 및 생성)
+사용자의 꿈 입력 데이터를 바탕으로 Gemini API를 호출하여 해몽 텍스트와 이미지를 생성합니다.
+- `POST /api/dreams`: 결제 확인 후, 사용자의 꿈 데이터를 바탕으로 AI 해몽 텍스트 생성 및 DB 저장
+- `POST /api/dreams/[dream-id]/image`: 추가 결제 옵션인 'AI 생성 이미지' 요청 및 결과 저장
+- `GET /api/dreams/[dream-id]`: 특정 해몽 결과(텍스트, 이미지) 상세 조회 (UX 4번 플로우)
+
+### 6.4. Feeds (공개 피드)
+다른 사용자들이 볼 수 있도록 허용된(또는 익명화된) 이전 해몽 결과들을 제공합니다.
+- `GET /api/feeds`: 과거 풀이 내역 피드 리스트 조회 (최신순, 무한 스크롤 및 페이지네이션 지원)
+
+### 6.5. Admin (관리자 전용)
+관리자 권한을 가진 유저만 접근 가능한 API입니다.
+- `GET /api/admin/metrics`: 대시보드용 기간별 매출, 방문자, 생성 건수 등 통계 데이터 조회
+- `GET /api/admin/orders`: 전체 주문 내역 리스트 조회 및 필터링
+- `GET /api/admin/orders/[order-id]`: 관리자 권한으로 특정 개별 주문의 상세 내역(결제 정보, 구매자 정보, 꿈 입력 내용 등) 조회
+- `GET /api/admin/users`: 전체 유저 리스트 조회 (회원/비회원 구분 필터 적용)
+- `POST /api/admin/dreams/[dream-id]/regenerate`: 관리자 권한으로 특정 꿈 해몽 AI 텍스트 또는 이미지 재생성 (품질 관리용)
