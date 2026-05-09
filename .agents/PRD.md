@@ -162,3 +162,58 @@ Next.js 14+ App Router의 `Route Handlers`(`app/api/.../route.ts`)와 `Supabase`
 - `GET /api/admin/orders/[order-id]`: 관리자 권한으로 특정 개별 주문의 상세 내역(결제 정보, 구매자 정보, 꿈 입력 내용 등) 조회
 - `GET /api/admin/users`: 전체 유저 리스트 조회 (회원/비회원 구분 필터 적용)
 - `POST /api/admin/dreams/[dream-id]/regenerate`: 관리자 권한으로 특정 꿈 해몽 AI 텍스트 또는 이미지 재생성 (품질 관리용)
+
+## 7. 데이터베이스 스키마 설계 (Database Schema Design)
+Supabase (PostgreSQL) 기반의 관계형 데이터베이스 스키마 설계입니다. 데이터는 MECE 원칙에 따라 크게 사용자(Users/Guests), 결제(Orders), 해몽(Dreams)으로 명확히 분리됩니다.
+
+### 7.1. `users` 테이블 (회원 정보)
+Supabase의 `auth.users`와 1:1 매핑되어 애플리케이션 내의 회원 프로필을 관리합니다.
+| 컬럼명 | 데이터 타입 | 제약 조건 (Null 여부) | 설명 |
+|---|---|---|---|
+| `id` | uuid | PK, Not Null | Supabase auth.users의 id와 동일 |
+| `email` | text | Not Null | 소셜 로그인 이메일 |
+| `nickname` | text | Not Null | 사용자 닉네임 |
+| `provider` | text | Not Null | 가입 제공자 (ex. 'google', 'kakao') |
+| `role` | text | Not Null | 권한 등급 (ex. 'admin', 'user') / Default: 'user' |
+| `created_at` | timestamp | Not Null | 계정 생성 일시 |
+| `updated_at` | timestamp | Not Null | 계정 수정 일시 |
+
+### 7.2. `guests` 테이블 (비회원 정보)
+소셜 로그인 없이 전화번호와 비밀번호로 이용하는 비회원 고객을 식별합니다.
+| 컬럼명 | 데이터 타입 | 제약 조건 (Null 여부) | 설명 |
+|---|---|---|---|
+| `id` | uuid | PK, Not Null | 고유 식별자 |
+| `phone` | text | Not Null, Unique | 비회원 전화번호 (로그인 아이디 역할) |
+| `password_hash` | text | Not Null | 암호화된 비밀번호 |
+| `created_at` | timestamp | Not Null | 비회원 정보 최초 생성 일시 |
+| `updated_at` | timestamp | Not Null | 정보 수정 일시 |
+
+### 7.3. `orders` 테이블 (결제 및 주문 내역)
+토스페이먼츠 연동을 위한 결제 상태와 내역을 통합 관리합니다. 회원(`user_id`)이거나 비회원(`guest_id`) 둘 중 하나의 식별자를 가집니다.
+| 컬럼명 | 데이터 타입 | 제약 조건 (Null 여부) | 설명 |
+|---|---|---|---|
+| `id` | uuid | PK, Not Null | 주문 고유 식별자 |
+| `user_id` | uuid | Nullable (FK) | `users.id` 참조 (회원인 경우) |
+| `guest_id` | uuid | Nullable (FK) | `guests.id` 참조 (비회원인 경우) |
+| `order_name` | text | Not Null | 주문명 (ex. "프로이트 해몽 + 이미지 추가") |
+| `amount` | integer | Not Null | 총 결제 금액 |
+| `has_image_option`| boolean | Not Null | AI 이미지 생성 옵션 구매 여부 |
+| `status` | text | Not Null | 결제 상태 ('pending', 'paid', 'failed', 'refunded') |
+| `toss_order_id` | text | Not Null, Unique | 토스페이먼츠 연동용 고유 주문번호 |
+| `toss_payment_key`| text | Nullable | 결제 최종 승인 후 발급받는 고유 키 |
+| `created_at` | timestamp | Not Null | 주문서 생성 일시 |
+| `updated_at` | timestamp | Not Null | 주문 상태 수정 일시 |
+
+### 7.4. `dreams` 테이블 (사용자 꿈 및 AI 해몽 결과)
+1개의 주문당 1개의 꿈 해몽이 생성되며(`order_id`와 1:1 관계), 유저의 입력값과 AI가 생성한 결과물을 보관합니다.
+| 컬럼명 | 데이터 타입 | 제약 조건 (Null 여부) | 설명 |
+|---|---|---|---|
+| `id` | uuid | PK, Not Null | 해몽 결과 고유 식별자 |
+| `order_id` | uuid | Not Null, Unique(FK) | `orders.id` 참조 |
+| `category` | text | Not Null | 선택한 해몽 분야 (ex. 'freud', 'jung' 등) |
+| `user_input` | text | Not Null | 유저가 직접 입력한 꿈의 내용 |
+| `interpretation` | text | Nullable | AI가 분석하여 생성한 텍스트 결과물 (생성 중일 땐 Null) |
+| `image_url` | text | Nullable | AI가 생성한 이미지 URL (옵션 미구매 시 또는 생성 중엔 Null) |
+| `is_public` | boolean | Not Null | 피드 공개 여부 플래그 (Default: true) |
+| `created_at` | timestamp | Not Null | 해몽 요청 생성 일시 |
+| `updated_at` | timestamp | Not Null | 해몽 결과물 저장 및 수정 일시 |
