@@ -29,12 +29,12 @@ export default function RootLayout({
       lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-950 text-white relative selection:bg-pink-500/30">
+      <body className="min-h-full flex flex-col bg-[#faf9f6] text-slate-900 relative selection:bg-pink-500/30">
         {/* Mystical Aurora Background Elements */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
-          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-purple-900/20 blur-[120px]" />
-          <div className="absolute top-[30%] -right-[20%] w-[60%] h-[60%] rounded-full bg-blue-900/10 blur-[150px]" />
-          <div className="absolute -bottom-[20%] left-[20%] w-[50%] h-[50%] rounded-full bg-pink-900/10 blur-[120px]" />
+          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-purple-300/40 blur-[120px]" />
+          <div className="absolute top-[30%] -right-[20%] w-[60%] h-[60%] rounded-full bg-blue-300/30 blur-[150px]" />
+          <div className="absolute -bottom-[20%] left-[20%] w-[50%] h-[50%] rounded-full bg-pink-300/30 blur-[120px]" />
         </div>
 
         <Header />
